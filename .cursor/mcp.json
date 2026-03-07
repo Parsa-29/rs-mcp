@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "rs-mcp": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "/Users/khvichaparsadanashvili/Documents/GitHub/rs-mcp"
+    }
+  }
+}
