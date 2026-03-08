@@ -1,6 +1,10 @@
 # rs-mcp
 
-MCP (Model Context Protocol) server for Georgia's Revenue Service (rs.ge). Exposes WayBill, Invoice, and TaxPayer SOAP APIs as 87 AI-callable tools over stdio. Works with any MCP-compatible client -- [Cursor](https://cursor.sh), [Claude Desktop](https://claude.ai/download), [Windsurf](https://codeium.com/windsurf), [Continue](https://continue.dev), or any other agent/IDE that supports the MCP standard.
+MCP server + CLI for Georgia's Revenue Service (rs.ge). Exposes WayBill, Invoice, and TaxPayer SOAP APIs as AI-callable tools. Ships two interfaces from the same codebase:
+
+- **MCP server** — 85 tools over stdio, works with any MCP-compatible client ([Cursor](https://cursor.sh), [Claude Desktop](https://claude.ai/download), [Windsurf](https://codeium.com/windsurf), [Continue](https://continue.dev), etc.)
+- **CLI** (`rs-cli`) — same 85 operations as subcommands, JSON output, for scripts and AI agents
+- **Claude Skill** — `skills/rs-ge/` folder, upload to Claude.ai or Claude Code to teach Claude how to use the tools
 
 **Services covered:**
 
@@ -15,7 +19,8 @@ MCP (Model Context Protocol) server for Georgia's Revenue Service (rs.ge). Expos
 
 - Read-only queries for waybills, invoices, taxpayer info, reference data
 - Full CRUD for waybills and invoices (create, send, confirm, reject, close, delete)
-- Human-in-the-Loop (HITL) safety system for all destructive operations
+- Human-in-the-Loop (HITL) safety for all destructive MCP operations
+- CLI with interactive `[y/N]` confirmation for destructive commands (`--yes` to skip)
 - Automatic SOAP envelope construction and XML response parsing
 
 ---
@@ -105,6 +110,69 @@ The server uses **stdio transport** -- your MCP client spawns the process and co
 
 ---
 
+## CLI Quick Start
+
+After building, use the `rs-cli` binary directly:
+
+```bash
+# Reference data (no auth needed for most)
+node dist/cli.js reference waybill-types
+node dist/cli.js reference units
+
+# Waybill queries
+node dist/cli.js waybill get 12345
+node dist/cli.js waybill list --from 2025-01-01 --to 2025-03-31
+node dist/cli.js waybill list --buyer-tin 123456789 --statuses 1
+
+# Waybill actions (prompts [y/N] before executing)
+node dist/cli.js waybill send 12345
+node dist/cli.js waybill send 12345 --yes    # skip prompt
+
+# Invoice
+node dist/cli.js invoice seller-list --un-id 999 --from 2025-01-01 --to 2025-03-31
+node dist/cli.js invoice get 456
+
+# Taxpayer
+node dist/cli.js taxpayer info 123456789
+node dist/cli.js taxpayer dashboard
+
+# Pretty-print JSON
+node dist/cli.js waybill get 12345 --pretty
+```
+
+Or install globally and use `rs-cli` directly:
+
+```bash
+npm install -g .
+rs-cli reference waybill-types
+```
+
+All commands output JSON. Use `--pretty` to force formatted output (auto-enabled on TTY).
+
+**Global flags:**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--yes` | `-y` | Skip `[y/N]` prompt on destructive operations |
+| `--pretty` | — | Force pretty-printed JSON |
+
+For a full command reference, see [`skills/rs-ge/references/`](skills/rs-ge/references/).
+
+---
+
+## Claude Skill
+
+The `skills/rs-ge/` folder is a proper [Claude Agent Skill](https://www.anthropic.com/news/agent-skills). Upload it to teach Claude how to use both the MCP tools and CLI.
+
+**Install in Claude.ai:**
+1. Zip the `skills/rs-ge/` folder
+2. Go to **Settings → Capabilities → Skills → Upload skill**
+
+**Install in Claude Code:**
+Place the `skills/rs-ge/` folder in your Claude Code skills directory.
+
+---
+
 ## Environment Variables
 
 | Variable | Required | Description | Example |
@@ -124,41 +192,56 @@ The server uses **stdio transport** -- your MCP client spawns the process and co
 
 ```
 rs-mcp/
-├── .cursor/
-│   └── mcp.json              # MCP server configuration (Cursor-specific)
-├── .env                       # Credentials (git-ignored)
-├── .env.example               # Template for .env
-├── .gitignore
-├── package.json
+├── .env                        # Credentials (git-ignored)
+├── .env.example                # Template for .env
+├── package.json                # bin: { "rs-cli": "./dist/cli.js" }
 ├── tsconfig.json
+├── skills/
+│   └── rs-ge/                  # Claude Agent Skill (upload to Claude.ai / Claude Code)
+│       ├── SKILL.md            # Skill definition with YAML frontmatter
+│       └── references/         # Detailed command docs (loaded by Claude on demand)
+│           ├── waybill.md
+│           ├── invoice.md
+│           └── taxpayer.md
 └── src/
-    ├── index.ts               # Entry point -- creates server, registers all tools
-    ├── config.ts              # Loads environment variables
-    ├── confirm.ts             # HITL pending-action store and execution logic
+    ├── index.ts                # MCP entry point -- creates server, registers all tools
+    ├── cli.ts                  # CLI entry point -- parseArgs router (rs-cli binary)
+    ├── config.ts               # Loads environment variables
+    ├── confirm.ts              # HITL pending-action store and execution logic
+    ├── mcp-confirm.ts          # MCP wrapper: wraps queueAction with MCP content format
+    ├── output.ts               # CLI JSON printer (pretty on TTY, compact when piped)
+    ├── prompt.ts               # CLI readline [y/N] confirmation prompt
     ├── soap/
-    │   ├── client.ts          # SOAP client for WayBill & Invoice (tempuri.org namespace)
-    │   └── tax-client.ts      # SOAP client for TaxPayer (services.rs.ge namespace)
+    │   ├── client.ts           # SOAP client for WayBill & Invoice (tempuri.org namespace)
+    │   └── tax-client.ts       # SOAP client for TaxPayer (services.rs.ge namespace)
     ├── xml/
-    │   ├── parser.ts          # XML-to-JSON parser (fast-xml-parser)
-    │   └── waybill-builder.ts # Structured JSON to Waybill XML converter
-    ├── tools/
-    │   ├── reference.ts       # WayBill reference data (types, units, transport)
-    │   ├── waybill.ts         # WayBill read/query tools
-    │   ├── waybill-write.ts   # WayBill write tools (save, send, close, delete)
-    │   ├── helpers.ts         # WayBill helper tools (TIN lookup, error codes)
-    │   ├── invoice.ts         # Invoice CRUD and status management
-    │   ├── invoice-query.ts   # Invoice listing and search
-    │   ├── invoice-desc.ts    # Invoice goods lines and waybill linking
-    │   ├── invoice-helpers.ts # Invoice lookups, excise, requests
-    │   ├── taxpayer.ts        # TaxPayer info and lookups
-    │   ├── taxpayer-reports.ts# TaxPayer reports and financial data
-    │   ├── taxpayer-auth.ts   # TaxPayer 2-step SMS auth tools
-    │   └── confirm.ts         # HITL confirmation/rejection tools
+    │   ├── parser.ts           # XML-to-JSON parser (fast-xml-parser)
+    │   └── waybill-builder.ts  # Structured JSON to Waybill XML converter
+    ├── commands/               # CLI command handlers (one file per domain)
+    │   ├── waybill.ts
+    │   ├── invoice.ts
+    │   ├── taxpayer.ts
+    │   ├── reference.ts
+    │   ├── helpers.ts
+    │   └── confirm.ts
+    ├── tools/                  # MCP tool registrations (one file per domain)
+    │   ├── reference.ts
+    │   ├── waybill.ts
+    │   ├── waybill-write.ts
+    │   ├── helpers.ts
+    │   ├── invoice.ts
+    │   ├── invoice-query.ts
+    │   ├── invoice-desc.ts
+    │   ├── invoice-helpers.ts
+    │   ├── taxpayer.ts
+    │   ├── taxpayer-reports.ts
+    │   ├── taxpayer-auth.ts
+    │   └── confirm.ts
     └── types/
-        ├── reference.ts       # WayBill reference data interfaces
-        ├── waybill.ts         # WayBill data interfaces
-        ├── invoice.ts         # Invoice data interfaces
-        └── taxpayer.ts        # TaxPayer data interfaces
+        ├── reference.ts
+        ├── waybill.ts
+        ├── invoice.ts
+        └── taxpayer.ts
 ```
 
 ---
@@ -168,50 +251,48 @@ rs-mcp/
 ```mermaid
 flowchart LR
     Client["MCP Client\n(Cursor, Claude Desktop, etc.)"] -->|stdio| McpServer["MCP Server\n(index.ts)"]
+    Terminal["Terminal / Script"] -->|argv| CLI["CLI\n(cli.ts → rs-cli)"]
 
-    McpServer --> RefTools["Reference Tools"]
-    McpServer --> WbTools["WayBill Tools"]
-    McpServer --> InvTools["Invoice Tools"]
-    McpServer --> TaxTools["TaxPayer Tools"]
-    McpServer --> ConfTools["Confirm Tools"]
+    McpServer --> Tools["MCP Tools\n(tools/)"]
+    CLI --> Commands["CLI Commands\n(commands/)"]
 
-    subgraph soap_layer [SOAP Layer]
-        SoapClient["callSoap\ncallSoapXml\n(tempuri.org)"]
+    subgraph soap_layer [Shared SOAP Layer]
+        SoapClient["callSoap / callSoapXml\n(tempuri.org)"]
         TaxClient["callTaxSoap\n(services.rs.ge)"]
     end
 
-    subgraph hitl [HITL System]
-        Queue["queueAction"]
-        Store["PendingAction Store"]
-        Execute["executeAction"]
+    subgraph hitl_mcp [MCP HITL]
+        Queue["queueAction → preview"]
+        Execute["confirm_action → execute"]
     end
 
-    RefTools --> SoapClient
-    WbTools --> SoapClient
-    InvTools --> SoapClient
-
-    WbTools -->|destructive| Queue
-    InvTools -->|destructive| Queue
-    TaxTools -->|destructive| Queue
-    TaxTools -->|read-only| TaxClient
-
-    Queue --> Store
-    ConfTools --> Execute
-    Execute --> Store
+    Tools -->|read-only| SoapClient
+    Tools -->|destructive| Queue
+    Queue --> Execute
     Execute --> SoapClient
-    Execute --> TaxClient
+
+    Commands -->|read-only| SoapClient
+    Commands -->|destructive: prompt y/N| SoapClient
+
+    Tools -->|read-only| TaxClient
+    Commands --> TaxClient
 
     SoapClient --> RS_WB["rs.ge\nWayBill API"]
     SoapClient --> RS_INV["rs.ge\nInvoice API"]
     TaxClient --> RS_TAX["rs.ge\nTaxPayer API"]
 ```
 
-**Data flow:**
+**Data flow — MCP:**
 
-1. The MCP client sends a tool call via stdio
-2. The MCP server routes it to the appropriate tool handler
-3. **Read-only tools** call the SOAP client directly and return JSON
-4. **Destructive tools** queue the action in the HITL store, return a preview, and wait for explicit user confirmation before executing
+1. MCP client sends a tool call via stdio
+2. Read-only tools call SOAP directly and return JSON
+3. Destructive tools queue the action (HITL), return a preview, wait for `confirm_action`
+
+**Data flow — CLI:**
+
+1. User runs `rs-cli <domain> <action> [flags]`
+2. Read-only commands call SOAP and print JSON
+3. Destructive commands prompt `[y/N]` (or skip with `--yes`), then call SOAP directly
 
 ---
 
@@ -498,44 +579,53 @@ The server communicates with three rs.ge SOAP endpoints:
 npm run build    # Compiles TypeScript to dist/
 ```
 
-### Run standalone (for debugging)
+### Run
 
 ```bash
-npm start        # Runs node dist/index.js
-```
+# MCP server (normally spawned by your MCP client, not run manually)
+npm start                      # node dist/index.js
 
-> For normal use, don't run manually -- your MCP client spawns the process.
+# CLI
+node dist/cli.js               # show usage
+node dist/cli.js reference waybill-types
+node dist/cli.js waybill list --from 2025-01-01 --to 2025-03-31
+```
 
 ### Tech stack
 
-- **TypeScript** with strict mode, ES2022 target, Node16 module resolution
-- **ES Modules** (`"type": "module"` in package.json)
-- **@modelcontextprotocol/sdk** -- MCP server framework
-- **zod** -- Input schema validation
-- **fast-xml-parser** -- XML response parsing
-- **dotenv** -- Environment variable loading
+- **TypeScript** — strict mode, ES2022 target, Node16 modules
+- **ES Modules** (`"type": "module"`)
+- **@modelcontextprotocol/sdk** — MCP server framework
+- **zod** — MCP input schema validation
+- **fast-xml-parser** — XML response parsing
+- **dotenv** — environment variable loading
+- **node:util parseArgs** — CLI argument parsing (no external framework)
 
-### Adding new tools
+### Adding a new MCP tool
 
-1. Create a tool file in `src/tools/` (or add to an existing one)
-2. Define tools using `server.tool(name, description, schema, annotations, handler)`
-3. Use `READONLY` or `DESTRUCTIVE` annotations:
+1. Add to an existing file in `src/tools/` (or create a new one)
+2. Use `server.tool(name, description, schema, annotations, handler)`
+3. Annotations:
    ```typescript
    const READONLY = { readOnlyHint: true, destructiveHint: false } as const;
    const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true } as const;
    ```
-4. For destructive tools, use `queueAction()` instead of calling SOAP directly
-5. Export a `register*Tools(server: McpServer)` function
-6. Import and call it in `src/index.ts`
-7. Rebuild with `npm run build`
+4. Destructive tools: use `mcpQueueAction()` from `../mcp-confirm.js` instead of calling SOAP directly
+5. Export `register*Tools(server: McpServer)` and call it in `src/index.ts`
+
+### Adding a new CLI command
+
+1. Add to the matching file in `src/commands/`
+2. Read-only: call SOAP directly and `output(result)`
+3. Destructive: prompt with `confirm()` from `../prompt.js`, or check `flags.yes`
+4. Register any new `--flag` names in the `parseArgs` options block in `src/cli.ts`
 
 ### Adding a new SOAP service
 
-1. Add endpoint URL to `src/config.ts` and `.env`/`.env.example`
-2. Create a SOAP client in `src/soap/` if the service uses a different namespace
-3. Create type interfaces in `src/types/`
-4. Create tool files in `src/tools/`
-5. If the service has destructive operations, extend `src/confirm.ts` if needed
+1. Add endpoint to `src/config.ts` and `.env.example`
+2. Create SOAP client in `src/soap/` if namespace differs
+3. Add type interfaces in `src/types/`
+4. Add MCP tools in `src/tools/` and CLI commands in `src/commands/`
 
 ---
 
