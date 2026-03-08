@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { queueAction } from "../confirm.js";
 import { config } from "../config.js";
 import { buildWaybillXml } from "../xml/waybill-builder.js";
+import { mcpQueueAction } from "../mcp-confirm.js";
 
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true } as const;
 
@@ -95,7 +95,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
         .map((g) => `${g.w_name} x${g.quantity}`)
         .join(", ");
 
-      return queueAction(
+      return mcpQueueAction(
         "save_waybill",
         {},
         `Save waybill (type=${params.type}, buyer=${params.buyer_tin}, goods: ${goodsSummary})`,
@@ -111,7 +111,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     { waybill_id: z.number().describe("Waybill ID to activate") },
     DESTRUCTIVE,
     async ({ waybill_id }) => {
-      return queueAction(
+      return mcpQueueAction(
         "send_waybill",
         { waybill_id },
         `Activate waybill #${waybill_id}`,
@@ -128,7 +128,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     },
     DESTRUCTIVE,
     async ({ waybill_id, begin_date }) => {
-      return queueAction(
+      return mcpQueueAction(
         "send_waybill_vd",
         { waybill_id, begin_date },
         `Activate waybill #${waybill_id} with begin date ${begin_date}`,
@@ -142,7 +142,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     { waybill_id: z.number().describe("Waybill ID to confirm") },
     DESTRUCTIVE,
     async ({ waybill_id }) => {
-      return queueAction(
+      return mcpQueueAction(
         "confirm_waybill",
         { waybill_id },
         `Confirm waybill #${waybill_id} (buyer confirmation)`,
@@ -156,7 +156,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     { waybill_id: z.number().describe("Waybill ID to reject") },
     DESTRUCTIVE,
     async ({ waybill_id }) => {
-      return queueAction(
+      return mcpQueueAction(
         "reject_waybill",
         { waybill_id },
         `Reject waybill #${waybill_id} (buyer rejection)`,
@@ -170,7 +170,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     { waybill_id: z.number().describe("Waybill ID to close") },
     DESTRUCTIVE,
     async ({ waybill_id }) => {
-      return queueAction(
+      return mcpQueueAction(
         "close_waybill",
         { waybill_id },
         `Close waybill #${waybill_id}`,
@@ -187,7 +187,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     },
     DESTRUCTIVE,
     async ({ waybill_id, delivery_date }) => {
-      return queueAction(
+      return mcpQueueAction(
         "close_waybill_vd",
         { waybill_id, delivery_date },
         `Close waybill #${waybill_id} with delivery date ${delivery_date}`,
@@ -201,7 +201,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     { waybill_id: z.number().describe("Waybill ID to delete") },
     DESTRUCTIVE,
     async ({ waybill_id }) => {
-      return queueAction(
+      return mcpQueueAction(
         "del_waybill",
         { waybill_id },
         `Delete waybill #${waybill_id}`,
@@ -215,7 +215,7 @@ export function registerWaybillWriteTools(server: McpServer): void {
     { waybill_id: z.number().describe("Waybill ID to cancel") },
     DESTRUCTIVE,
     async ({ waybill_id }) => {
-      return queueAction(
+      return mcpQueueAction(
         "ref_waybill",
         { waybill_id },
         `Cancel waybill #${waybill_id}`,

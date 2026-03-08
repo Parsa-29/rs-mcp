@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { callTaxSoap } from "../soap/tax-client.js";
 import { config } from "../config.js";
-import { queueAction } from "../confirm.js";
+import { mcpQueueAction } from "../mcp-confirm.js";
 
 const READONLY = { readOnlyHint: true, destructiveHint: false } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true } as const;
@@ -59,7 +59,7 @@ export function registerTaxpayerAuthTools(server: McpServer): void {
     },
     DESTRUCTIVE,
     async ({ said_code, status }) => {
-      return queueAction(
+      return mcpQueueAction(
         "Payer_Info_Activation",
         {
           userName: config.su,
@@ -85,7 +85,7 @@ export function registerTaxpayerAuthTools(server: McpServer): void {
     },
     DESTRUCTIVE,
     async ({ payer_code, start_date, status }) => {
-      return queueAction(
+      return mcpQueueAction(
         "Gita_Payer_Activation",
         {
           userName: config.su,

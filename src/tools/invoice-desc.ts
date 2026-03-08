@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { callSoap } from "../soap/client.js";
 import { config } from "../config.js";
-import { queueAction } from "../confirm.js";
+import { mcpQueueAction } from "../mcp-confirm.js";
 
 const URL = config.invoiceUrl;
 const READONLY = { readOnlyHint: true, destructiveHint: false } as const;
@@ -37,7 +37,7 @@ export function registerInvoiceDescTools(server: McpServer): void {
         aqcizi_amount: params.aqcizi_amount ?? 0,
         akciz_id: params.akciz_id ?? 0,
       };
-      return queueAction(
+      return mcpQueueAction(
         "save_invoice_desc",
         soapParams,
         `Save goods line #${params.id} on invoice #${params.invois_id}: "${params.goods}"`,
@@ -76,7 +76,7 @@ export function registerInvoiceDescTools(server: McpServer): void {
         id,
         inv_id,
       };
-      return queueAction(
+      return mcpQueueAction(
         "delete_invoice_desc",
         soapParams,
         `Delete goods line #${id} from invoice #${inv_id}`,
@@ -117,7 +117,7 @@ export function registerInvoiceDescTools(server: McpServer): void {
         overhead_no,
         overhead_dt,
       };
-      return queueAction(
+      return mcpQueueAction(
         "save_ntos_invoices_inv_nos",
         soapParams,
         `Link waybill ${overhead_no} to invoice #${invois_id}`,
@@ -140,7 +140,7 @@ export function registerInvoiceDescTools(server: McpServer): void {
         id,
         inv_id,
       };
-      return queueAction(
+      return mcpQueueAction(
         "delete_ntos_invoices_inv_nos",
         soapParams,
         `Unlink waybill link #${id} from invoice #${inv_id}`,

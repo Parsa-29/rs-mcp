@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { callSoap } from "../soap/client.js";
 import { config } from "../config.js";
-import { queueAction } from "../confirm.js";
+import { mcpQueueAction } from "../mcp-confirm.js";
 
 const URL = config.invoiceUrl;
 const READONLY = { readOnlyHint: true, destructiveHint: false } as const;
@@ -142,7 +142,7 @@ export function registerInvoiceHelperTools(server: McpServer): void {
         dt: params.dt,
         notes: params.notes ?? "",
       };
-      return queueAction(
+      return mcpQueueAction(
         "save_invoice_request",
         soapParams,
         `Save invoice request #${params.inv_id} (buyer=${params.bayer_un_id}, seller=${params.seller_un_id})`,
@@ -165,7 +165,7 @@ export function registerInvoiceHelperTools(server: McpServer): void {
         user_id: config.userId,
         bayer_un_id,
       };
-      return queueAction(
+      return mcpQueueAction(
         "del_invoice_request",
         soapParams,
         `Delete invoice request #${inv_id} (buyer=${bayer_un_id})`,
@@ -204,7 +204,7 @@ export function registerInvoiceHelperTools(server: McpServer): void {
         user_id: config.userId,
         seller_un_id,
       };
-      return queueAction(
+      return mcpQueueAction(
         "acsept_invoice_request_status",
         soapParams,
         `Forward invoice request #${id} to seller ${seller_un_id}`,

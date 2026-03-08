@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { callSoap } from "../soap/client.js";
 import { config } from "../config.js";
-import { queueAction } from "../confirm.js";
+import { mcpQueueAction } from "../mcp-confirm.js";
 
 const URL = config.invoiceUrl;
 const READONLY = { readOnlyHint: true, destructiveHint: false } as const;
@@ -33,7 +33,7 @@ export function registerInvoiceTools(server: McpServer): void {
         overhead_dt: params.overhead_dt ?? "2000-01-01T00:00:00",
         b_s_user_id: params.b_s_user_id ?? 0,
       };
-      return queueAction(
+      return mcpQueueAction(
         "save_invoice",
         soapParams,
         `Save invoice #${params.invois_id} (seller=${params.seller_un_id}, buyer=${params.buyer_un_id})`,
@@ -68,7 +68,7 @@ export function registerInvoiceTools(server: McpServer): void {
         b_s_user_id: params.b_s_user_id ?? 0,
         note: params.note,
       };
-      return queueAction(
+      return mcpQueueAction(
         "save_invoice_n",
         soapParams,
         `Save invoice #${params.invois_id} with note (seller=${params.seller_un_id}, buyer=${params.buyer_un_id})`,
@@ -101,7 +101,7 @@ export function registerInvoiceTools(server: McpServer): void {
         overhead_dt: params.overhead_dt ?? "2000-01-01T00:00:00",
         b_s_user_id: params.b_s_user_id ?? 0,
       };
-      return queueAction(
+      return mcpQueueAction(
         "save_invoice_a",
         soapParams,
         `Save advance/compensation invoice #${params.invois_id} (seller=${params.seller_un_id}, buyer=${params.buyer_un_id})`,
@@ -140,7 +140,7 @@ export function registerInvoiceTools(server: McpServer): void {
         inv_id,
         status,
       };
-      return queueAction(
+      return mcpQueueAction(
         "change_invoice_status",
         soapParams,
         `Change invoice #${inv_id} status to ${status}`,
@@ -163,7 +163,7 @@ export function registerInvoiceTools(server: McpServer): void {
         inv_id,
         status,
       };
-      return queueAction(
+      return mcpQueueAction(
         "acsept_invoice_status",
         soapParams,
         `Accept invoice #${inv_id} with status ${status}`,
@@ -186,7 +186,7 @@ export function registerInvoiceTools(server: McpServer): void {
         inv_id,
         ref_text,
       };
-      return queueAction(
+      return mcpQueueAction(
         "ref_invoice_status",
         soapParams,
         `Reject invoice #${inv_id}: "${ref_text}"`,
@@ -209,7 +209,7 @@ export function registerInvoiceTools(server: McpServer): void {
         inv_id,
         k_type,
       };
-      return queueAction(
+      return mcpQueueAction(
         "k_invoice",
         soapParams,
         `Create correction (type=${k_type}) for invoice #${inv_id}`,
@@ -248,7 +248,7 @@ export function registerInvoiceTools(server: McpServer): void {
         seq_num,
         inv_id,
       };
-      return queueAction(
+      return mcpQueueAction(
         "add_inv_to_decl",
         soapParams,
         `Attach invoice #${inv_id} to declaration ${seq_num}`,

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { callTaxSoap } from "../soap/tax-client.js";
 import { config } from "../config.js";
-import { queueAction } from "../confirm.js";
+import { mcpQueueAction } from "../mcp-confirm.js";
 
 const READONLY = { readOnlyHint: true, destructiveHint: false } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true } as const;
@@ -168,7 +168,7 @@ export function registerTaxpayerReportTools(server: McpServer): void {
     },
     DESTRUCTIVE,
     async ({ declaration_number, customs_code, car_number }) => {
-      return queueAction(
+      return mcpQueueAction(
         "Customs_WareHouse_Exit",
         {
           UserName: config.su,

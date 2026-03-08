@@ -15,6 +15,14 @@ export interface PendingAction {
   createdAt: number;
 }
 
+export interface QueuedActionResult {
+  action_id: string;
+  action: string;
+  method: string;
+  params: Record<string, string | number | undefined>;
+  expires_in: string;
+}
+
 const store = new Map<string, PendingAction>();
 
 function purgeExpired(): void {
@@ -25,8 +33,9 @@ function purgeExpired(): void {
 }
 
 /**
- * Queues a destructive SOAP action and returns an MCP tool response
- * with a preview and confirmation token instead of executing immediately.
+ * Queues a destructive SOAP action and returns a plain result object.
+ * Protocol-specific formatting (MCP content blocks, CLI prompts, etc.)
+ * is handled by the consumer layer.
  */
 export function queueAction(
   method: string,
@@ -35,7 +44,7 @@ export function queueAction(
   baseUrl?: string,
   xmlParams?: Record<string, string>,
   useTaxSoap?: boolean,
-): { content: { type: "text"; text: string }[] } {
+): QueuedActionResult {
   purgeExpired();
 
   const action: PendingAction = {
@@ -51,30 +60,16 @@ export function queueAction(
   store.set(action.id, action);
 
   return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(
-          {
-            pending_confirmation: true,
-            action_id: action.id,
-            action: description,
-            method,
-            params,
-            expires_in: "5 minutes",
-            next_step:
-              "SHOW THIS PREVIEW TO THE USER and ask for their explicit approval. Only call confirm_action (with confirmation_text='CONFIRM') after the user says yes. Call reject_action to cancel.",
-          },
-          null,
-          2,
-        ),
-      },
-    ],
+    action_id: action.id,
+    action: description,
+    method,
+    params,
+    expires_in: "5 minutes",
   };
 }
 
 /**
- * Executes a previously queued action by its token,
+ * Executes a previously queued action by its id,
  * removes it from the store, and returns the SOAP result.
  */
 export async function executeAction(id: string): Promise<unknown> {
